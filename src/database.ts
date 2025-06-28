@@ -159,6 +159,48 @@ export class PlayerDatabase {
     });
   }
 
+  async getLeagues(): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT DISTINCT league 
+        FROM players 
+        WHERE league IS NOT NULL AND league != '' 
+        ORDER BY league
+      `;
+
+      this.db.all(sql, [], (err: sqlite3.RunResult | null, rows: any[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const leagues = rows.map(row => row.league);
+        resolve(leagues);
+      });
+    });
+  }
+
+  async getPlayersByLeague(league: string, minRating: number = 80, limit: number = 50): Promise<Player[]> {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT * FROM players 
+        WHERE league = ? AND overall_rating >= ? 
+        ORDER BY overall_rating DESC, market_value DESC 
+        LIMIT ?
+      `;
+
+      this.db.all(sql, [league, minRating, limit], (err: sqlite3.RunResult | null, rows: any[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const players = rows.map(row => this.rowToPlayer(row));
+        resolve(players);
+      });
+    });
+  }
+
   private rowToPlayer(row: any): Player {
     // Parse attributes from JSON string
     let attributes: PlayerAttributes;

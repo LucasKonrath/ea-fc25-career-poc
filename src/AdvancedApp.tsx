@@ -23,6 +23,7 @@ const MainMenu: React.FC<{ onSelect: (action: string) => void }> = ({ onSelect }
     { key: 'valuePlayers', label: '💎 Best Value Players' },
     { key: 'strikers', label: '⚽ Best Strikers' },
     { key: 'goalkeepers', label: '🥅 Top Goalkeepers' },
+    { key: 'leaguePlayers', label: '🏆 Best Players by League' },
     { key: 'stats', label: '📊 Database Statistics' },
     { key: 'positionStats', label: '📍 Position Analysis' },
     { key: 'update', label: '🔄 Update Database' },
@@ -451,7 +452,56 @@ const PositionStatsView: React.FC<{ stats: DatabaseStats; onBack: () => void }> 
   );
 };
 
-type AppState = 'menu' | 'search' | 'advancedSearch' | 'stats' | 'positionStats' | 'loading';
+const LeagueSelector: React.FC<{ leagues: string[]; onSelect: (league: string) => void; onBack: () => void }> = ({ leagues, onSelect, onBack }) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useInput((input, key) => {
+    if (key.escape || input === 'q') {
+      onBack();
+    } else if (key.upArrow && selectedIndex > 0) {
+      setSelectedIndex(selectedIndex - 1);
+    } else if (key.downArrow && selectedIndex < leagues.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+    } else if (key.return && leagues.length > 0) {
+      onSelect(leagues[selectedIndex]);
+    }
+  });
+
+  return (
+    <Box flexDirection="column">
+      <Box marginBottom={1}>
+        <Text bold color="cyan">🏆 Select a League</Text>
+      </Box>
+      
+      <Box borderStyle="round" padding={1}>
+        <Box flexDirection="column">
+          <Box marginBottom={1}>
+            <Text color="white">Choose a league to view best players (80+ rating):</Text>
+          </Box>
+          
+          {leagues.length === 0 ? (
+            <Text color="red">No leagues found in database</Text>
+          ) : (
+            leagues.map((league, index) => (
+              <Box key={league}>
+                <Text color={index === selectedIndex ? 'black' : 'white'} 
+                      backgroundColor={index === selectedIndex ? 'cyan' : undefined}>
+                  {index === selectedIndex ? '► ' : '  '}{league}
+                </Text>
+              </Box>
+            ))
+          )}
+        </Box>
+      </Box>
+      
+      <Box marginTop={1}>
+        <Text color="gray">↑↓ to navigate | Enter to select | ESC or 'q' to go back</Text>
+      </Box>
+    </Box>
+  );
+};
+
+type AppState = 'menu' | 'search' | 'advancedSearch' | 'stats' | 'positionStats' | 'loading' | 'leagueSelect';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>('loading');
@@ -459,6 +509,7 @@ const App: React.FC = () => {
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('Initializing...');
   const [currentTitle, setCurrentTitle] = useState('Search Results');
+  const [leagues, setLeagues] = useState<string[]>([]);
   const { exit } = useApp();
 
   const db = new PlayerDatabase();
@@ -491,6 +542,10 @@ const App: React.FC = () => {
         } else {
           setStats(initialStats);
         }
+        
+        // Load distinct leagues from the database
+        const allLeagues = await db.getLeagues();
+        setLeagues(allLeagues);
         
         setState('menu');
       } catch (error) {
@@ -546,6 +601,12 @@ const App: React.FC = () => {
           setCurrentTitle('Top Goalkeepers (82+ Rating)');
           setState('search');
           break;
+        case 'leaguePlayers':
+          setLoadingMessage('Loading available leagues...');
+          const availableLeagues = await db.getLeagues();
+          setLeagues(availableLeagues);
+          setState('leagueSelect');
+          break;
         case 'stats':
           setState('stats');
           break;
@@ -599,6 +660,21 @@ const App: React.FC = () => {
     setState('menu');
   };
 
+  const handleLeagueSelect = async (selectedLeague: string) => {
+    setState('loading');
+    setLoadingMessage(`Loading best players in ${selectedLeague} (80+ rating)...`);
+    
+    try {
+      const leaguePlayers = await db.getPlayersByLeague(selectedLeague, 80, 50);
+      setPlayers(leaguePlayers);
+      setCurrentTitle(`Best Players in ${selectedLeague} (80+ Rating)`);
+      setState('search');
+    } catch (error) {
+      console.error('League search error:', error);
+      setState('menu');
+    }
+  };
+
   if (state === 'loading') {
     return <Loading message={loadingMessage} />;
   }
@@ -621,6 +697,10 @@ const App: React.FC = () => {
 
   if (state === 'positionStats' && stats) {
     return <PositionStatsView stats={stats} onBack={handleBack} />;
+  }
+
+  if (state === 'leagueSelect') {
+    return <LeagueSelector leagues={leagues} onSelect={handleLeagueSelect} onBack={handleBack} />;
   }
 
   return <Loading message="Loading..." />;
