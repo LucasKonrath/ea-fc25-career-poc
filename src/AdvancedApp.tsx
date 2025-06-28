@@ -24,6 +24,7 @@ const MainMenu: React.FC<{ onSelect: (action: string) => void }> = ({ onSelect }
     { key: 'strikers', label: '⚽ Best Strikers' },
     { key: 'goalkeepers', label: '🥅 Top Goalkeepers' },
     { key: 'leaguePlayers', label: '🏆 Best Players by League' },
+    { key: 'continentPlayers', label: '🌍 Best Players by Continent' },
     { key: 'stats', label: '📊 Database Statistics' },
     { key: 'positionStats', label: '📍 Position Analysis' },
     { key: 'update', label: '🔄 Update Database' },
@@ -501,7 +502,72 @@ const LeagueSelector: React.FC<{ leagues: string[]; onSelect: (league: string) =
   );
 };
 
-type AppState = 'menu' | 'search' | 'advancedSearch' | 'stats' | 'positionStats' | 'loading' | 'leagueSelect';
+const ContinentSelector: React.FC<{ 
+  continents: { continent: string; playerCount: number }[]; 
+  onSelect: (continent: string) => void; 
+  onBack: () => void 
+}> = ({ continents, onSelect, onBack }) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useInput((input, key) => {
+    if (key.escape || input === 'q') {
+      onBack();
+    } else if (key.upArrow && selectedIndex > 0) {
+      setSelectedIndex(selectedIndex - 1);
+    } else if (key.downArrow && selectedIndex < continents.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+    } else if (key.return && continents.length > 0) {
+      onSelect(continents[selectedIndex].continent);
+    }
+  });
+
+  const getContinentEmoji = (continent: string) => {
+    const emojiMap: Record<string, string> = {
+      'Europe': '🇪🇺',
+      'Asia': '🌏',
+      'Africa': '🌍',
+      'North America': '🌎',
+      'South America': '🌎',
+      'Oceania': '🌏'
+    };
+    return emojiMap[continent] || '🌍';
+  };
+
+  return (
+    <Box flexDirection="column">
+      <Box marginBottom={1}>
+        <Text bold color="cyan">🌍 Select a Continent</Text>
+      </Box>
+      
+      <Box borderStyle="round" padding={1}>
+        <Box flexDirection="column">
+          <Box marginBottom={1}>
+            <Text color="white">Choose a continent to view best players (75+ rating):</Text>
+          </Box>
+          
+          {continents.length === 0 ? (
+            <Text color="red">No continents found in database</Text>
+          ) : (
+            continents.map((item, index) => (
+              <Box key={item.continent}>
+                <Text color={index === selectedIndex ? 'black' : 'white'} 
+                      backgroundColor={index === selectedIndex ? 'cyan' : undefined}>
+                  {index === selectedIndex ? '► ' : '  '}{getContinentEmoji(item.continent)} {item.continent} ({item.playerCount} players)
+                </Text>
+              </Box>
+            ))
+          )}
+        </Box>
+      </Box>
+      
+      <Box marginTop={1}>
+        <Text color="gray">↑↓ to navigate | Enter to select | ESC or 'q' to go back</Text>
+      </Box>
+    </Box>
+  );
+};
+
+type AppState = 'menu' | 'search' | 'advancedSearch' | 'stats' | 'positionStats' | 'loading' | 'leagueSelect' | 'continentSelect';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>('loading');
@@ -510,6 +576,7 @@ const App: React.FC = () => {
   const [loadingMessage, setLoadingMessage] = useState('Initializing...');
   const [currentTitle, setCurrentTitle] = useState('Search Results');
   const [leagues, setLeagues] = useState<string[]>([]);
+  const [continents, setContinents] = useState<{ continent: string; playerCount: number }[]>([]);
   const { exit } = useApp();
 
   const db = new PlayerDatabase();
@@ -543,9 +610,12 @@ const App: React.FC = () => {
           setStats(initialStats);
         }
         
-        // Load distinct leagues from the database
+        // Load distinct leagues and continents from the database
         const allLeagues = await db.getLeagues();
         setLeagues(allLeagues);
+        
+        const allContinents = await db.getContinents();
+        setContinents(allContinents);
         
         setState('menu');
       } catch (error) {
@@ -606,6 +676,12 @@ const App: React.FC = () => {
           const availableLeagues = await db.getLeagues();
           setLeagues(availableLeagues);
           setState('leagueSelect');
+          break;
+        case 'continentPlayers':
+          setLoadingMessage('Loading available continents...');
+          const availableContinents = await db.getContinents();
+          setContinents(availableContinents);
+          setState('continentSelect');
           break;
         case 'stats':
           setState('stats');
@@ -675,6 +751,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleContinentSelect = async (selectedContinent: string) => {
+    setState('loading');
+    setLoadingMessage(`Loading best players from ${selectedContinent} (75+ rating)...`);
+    
+    try {
+      const continentPlayers = await db.getPlayersByContinent(selectedContinent, 75, 50);
+      setPlayers(continentPlayers);
+      setCurrentTitle(`Best Players from ${selectedContinent} (75+ Rating)`);
+      setState('search');
+    } catch (error) {
+      console.error('Continent search error:', error);
+      setState('menu');
+    }
+  };
+
   if (state === 'loading') {
     return <Loading message={loadingMessage} />;
   }
@@ -701,6 +792,10 @@ const App: React.FC = () => {
 
   if (state === 'leagueSelect') {
     return <LeagueSelector leagues={leagues} onSelect={handleLeagueSelect} onBack={handleBack} />;
+  }
+
+  if (state === 'continentSelect') {
+    return <ContinentSelector continents={continents} onSelect={handleContinentSelect} onBack={handleBack} />;
   }
 
   return <Loading message="Loading..." />;

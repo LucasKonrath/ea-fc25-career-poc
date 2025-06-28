@@ -201,6 +201,115 @@ export class PlayerDatabase {
     });
   }
 
+  async getPlayersByContinent(continent: string, minRating: number = 75, limit: number = 50): Promise<Player[]> {
+    const continentCountries = this.getContinentCountries(continent);
+    
+    return new Promise((resolve, reject) => {
+      const placeholders = continentCountries.map(() => '?').join(',');
+      const sql = `
+        SELECT * FROM players 
+        WHERE nationality IN (${placeholders}) AND overall_rating >= ? 
+        ORDER BY overall_rating DESC, market_value DESC 
+        LIMIT ?
+      `;
+
+      const params = [...continentCountries, minRating, limit];
+      this.db.all(sql, params, (err: sqlite3.RunResult | null, rows: any[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const players = rows.map(row => this.rowToPlayer(row));
+        resolve(players);
+      });
+    });
+  }
+
+  private getContinentCountries(continent: string): string[] {
+    const continentMap: Record<string, string[]> = {
+      'Europe': [
+        'Spain', 'France', 'Netherlands', 'Portugal', 'England', 'Italy', 'Germany', 
+        'Sweden', 'Norway', 'Croatia', 'Poland', 'Hungary', 'Denmark', 'Ukraine', 
+        'Scotland', 'Finland', 'Czechia', 'Belgium', 'Austria', 'Switzerland', 
+        'Greece', 'Serbia', 'Turkey', 'Russia', 'Romania', 'Bulgaria', 'Slovenia',
+        'Slovakia', 'Ireland', 'Wales', 'Iceland', 'Bosnia and Herzegovina',
+        'North Macedonia', 'Albania', 'Montenegro', 'Lithuania', 'Latvia', 'Estonia'
+      ],
+      'South America': [
+        'Argentina', 'Brazil', 'Uruguay', 'Colombia', 'Chile', 'Peru', 'Ecuador',
+        'Paraguay', 'Bolivia', 'Venezuela', 'Guyana', 'Suriname'
+      ],
+      'North America': [
+        'United States', 'Mexico', 'Canada', 'Costa Rica', 'Honduras', 'Guatemala',
+        'Panama', 'El Salvador', 'Nicaragua', 'Jamaica', 'Trinidad and Tobago'
+      ],
+      'Africa': [
+        'Morocco', 'Ghana', 'Nigeria', 'Egypt', 'South Africa', 'Tunisia', 'Algeria',
+        'Senegal', 'Cameroon', 'Ivory Coast', 'Mali', 'Burkina Faso', 'Kenya',
+        'Ethiopia', 'Zimbabwe', 'Zambia', 'Angola', 'Madagascar', 'Mozambique'
+      ],
+      'Asia': [
+        'Japan', 'South Korea', 'China', 'India', 'Thailand', 'Iran', 'Iraq',
+        'Saudi Arabia', 'UAE', 'Qatar', 'Kuwait', 'Jordan', 'Lebanon', 'Syria',
+        'Israel', 'Palestine', 'Vietnam', 'Malaysia', 'Singapore', 'Indonesia',
+        'Philippines', 'Myanmar', 'Cambodia', 'Laos', 'North Korea', 'Mongolia',
+        'Kazakhstan', 'Uzbekistan', 'Kyrgyzstan', 'Tajikistan', 'Turkmenistan',
+        'Afghanistan', 'Pakistan', 'Bangladesh', 'Sri Lanka', 'Nepal', 'Bhutan'
+      ],
+      'Oceania': [
+        'Australia', 'New Zealand', 'Fiji', 'Papua New Guinea', 'Solomon Islands',
+        'Vanuatu', 'Samoa', 'Tonga', 'Palau', 'Marshall Islands', 'Micronesia'
+      ]
+    };
+
+    return continentMap[continent] || [];
+  }
+
+  async getContinents(): Promise<{ continent: string; playerCount: number }[]> {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT nationality, COUNT(*) as count 
+        FROM players 
+        WHERE nationality IS NOT NULL AND nationality != '' AND nationality != 'Unknown'
+        GROUP BY nationality
+      `;
+
+      this.db.all(sql, [], (err: sqlite3.RunResult | null, rows: any[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const continentCounts: Record<string, number> = {
+          'Europe': 0,
+          'South America': 0,
+          'North America': 0,
+          'Africa': 0,
+          'Asia': 0,
+          'Oceania': 0
+        };
+
+        rows.forEach((row: any) => {
+          const continents = ['Europe', 'South America', 'North America', 'Africa', 'Asia', 'Oceania'];
+          for (const continent of continents) {
+            if (this.getContinentCountries(continent).includes(row.nationality)) {
+              continentCounts[continent] += row.count;
+              break;
+            }
+          }
+        });
+
+        const result = Object.entries(continentCounts)
+          .filter(([_, count]) => count > 0)
+          .map(([continent, count]) => ({ continent, playerCount: count }))
+          .sort((a, b) => b.playerCount - a.playerCount);
+
+        resolve(result);
+      });
+    });
+  }
+
   private rowToPlayer(row: any): Player {
     // Parse attributes from JSON string
     let attributes: PlayerAttributes;
