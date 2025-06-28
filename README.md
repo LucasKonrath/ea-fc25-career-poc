@@ -1,33 +1,87 @@
 # EA FC 25 Career Mode Player Manager
 
-A Python-based system to help manage your EA FC 25 career mode by tracking player data, market values, and finding the best players for your team.
+A modern React CLI application for managing EA FC 25 career mode data with advanced player search, analytics, and team building features.
 
-## Features
+## Screenshots
 
-- **Player Database Management**: Track player statistics, positions, ages, and attributes
-- **Market Analysis**: Monitor player prices and market trends
-- **Best Player Search**: Find the best players based on various criteria (position, budget, age, etc.)
-- **Career Mode Tools**: Helpful utilities for managing your career mode progression
+![alt text](image.png)
 
-## Installation
+![alt text](image-1.png)
 
-1. Clone or download this project
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+![alt text](image-2.png)
 
-## Usage
+## 🚀 Quick Start
 
-### Basic Usage
 ```bash
-python main.py --help
+# Install dependencies
+npm install
+
+# Run the interactive React CLI
+npm run fc25
 ```
 
-### Find Best Players
-```bash
-# Find best strikers under 25 years old
-python main.py search --position ST --max-age 25
+## ✨ Features
+
+- **🔍 Advanced Player Search**: Filter by position, rating, age, price, and more
+- **⚡ Quick Search Presets**: Top players, young talents, value players, best strikers
+- **📊 Database Analytics**: Complete statistics and position analysis  
+- **💎 Market Intelligence**: Find undervalued players and best deals
+- **🎯 Career Mode Tools**: Real-time data from 18,000+ EA FC 25 players
+- **🔄 Live Updates**: Update database with latest player data
+
+## 🛠️ Installation
+
+1. Clone this repository:
+   ```bash
+   git clone <repository-url>
+   cd ea-fc25-career-poc
+   ```
+
+2. Install Node.js dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the interactive CLI:
+   ```bash
+   npm run fc25
+   ```
+
+## 💻 Usage
+
+### Interactive React CLI
+The main interface provides several options:
+
+- **🔍 Advanced Player Search**: Custom search with multiple filters
+- **⚡ Quick Search (Top Players)**: Find 90+ rated players
+- **🌟 Young Talents (U21)**: High potential young players
+- **💎 Best Value Players**: Market deals and bargains
+- **⚽ Best Strikers**: Top attacking players by position
+- **🥅 Top Goalkeepers**: Elite goalkeeper options
+- **📊 Database Statistics**: Overview of player database
+- **📍 Position Analysis**: Breakdown by player positions
+
+### Example Searches
+- Find world-class strikers: Use Quick Search → Best Strikers
+- Scout young talent: Use Young Talents for players under 21 with high potential
+- Find bargains: Use Best Value Players for market deals
+- Custom search: Use Advanced Search for specific criteria
+
+## 📁 Project Structure
+
+```
+src/
+├── AdvancedApp.tsx     # Main React CLI application  
+├── database.ts         # Database and CSV data handling
+├── types.ts           # TypeScript interfaces
+└── index.tsx          # CLI entry point
+
+dataset/
+└── player-data-full-2025-june.csv  # EA FC 25 player data
+
+data/
+└── players.db         # SQLite database
+```
 
 # Find best players under 50M budget
 python main.py search --max-price 50000000
